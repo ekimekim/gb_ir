@@ -111,6 +111,17 @@ SpritePaletteSolid EQU $ff49
 WindowY EQU $ff4a
 WindowX EQU $ff4b
 
+; "KEY1" Game Boy Color speed switch.
+; Bit 7 is unset/set when in normal/double speed respectively.
+; Bit 0 should be set to 1, then a STOP command issued to switch modes.
+CGBSpeedSwitch EQU $ff4d
+
+; "RP" Game Boy Color infrared IO.
+; When bit 0 is set, we are sending a signal.
+; When bits 6 and 7 are set, bit 1 will contain whether we're currently detecting a signal.
+; Bit 1 will be unset when a signal is detected, and set otherwise.
+CGBInfrared EQU $ff56
+
 ; "IE" Interrupt Enable flags. Write to this register to selectively disable interrupts.
 ; Bits 0-4 control off/on for respectively: VBlank, LCDC, Timer, Serial, Joypad
 InterruptsEnabled EQU $ffff

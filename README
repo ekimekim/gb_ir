@@ -1,3 +1,9 @@
 A very simple program for the Game Boy Color only.
 
 It samples the infrared sensor and displays a graph on screen.
+
+
+Controls:
+	Left/Right: Adjust sample frequency
+	B: Pause
+	A: Continue

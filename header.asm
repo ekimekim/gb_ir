@@ -39,14 +39,20 @@ IntLCDC::
 section "Timer Interrupt handler", ROM0 [$50]
 ; A configurable amount of time has passed
 IntTimer::
-	reti
-section "Serial Interrupt handler", ROM0 [$58]
-; Serial transfer is complete
-IntSerial::
-	reti
-section "Joypad Interrupt handler", ROM0 [$60]
-; Change in joystick state
-IntJoypad::
+	; We do this inline for speed, even though it overruns the section.
+	; We aren't going to use Serial or Joypad interrupts.
+	push AF
+	push HL
+	ld H, Samples >> 8
+	ld A, [SampleIndex]
+	inc A
+	ld L, A
+	ld [SampleIndex], A
+	ld A, [CGBInfrared]
+	cpl ; A = ~A
+	rra ; shift A right
+	and 1 ; select only last bit
+	ld [HL], A
 	reti
 
 section "Core Utility", ROM0
