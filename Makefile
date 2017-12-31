@@ -14,7 +14,7 @@ all: rom.gb
 
 rom.gb: $(OBJS)
 	rgblink -n rom.sym -o $@ $^
-	rgbfix -v -p 0 $@
+	rgbfix -v -p 0 -C $@
 
 bgb: rom.gb
 	bgb $<

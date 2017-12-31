@@ -1,3 +1,4 @@
+include "ioregs.asm"
 include "hram.asm"
 
 ; Warning: each of these sections can only be 8b long!
@@ -41,18 +42,39 @@ section "Timer Interrupt handler", ROM0 [$50]
 IntTimer::
 	; We do this inline for speed, even though it overruns the section.
 	; We aren't going to use Serial or Joypad interrupts.
+	; We have a budget of TimerModulo * 4 cycles, which right now is 64 cycles.
+	; Our worst-case path right now is 43 cycles, not including however long interrupt servicing is.
 	push AF
 	push HL
-	ld H, Samples >> 8
+	ld H, HIGH(Samples)
+	ld A, [SampleBit]
+	dec A
+	ld [SampleBit], A
 	ld A, [SampleIndex]
-	inc A
 	ld L, A
-	ld [SampleIndex], A
+	jr nz, .noNextIndex
+	inc A
+	jr z, .stopSampling ; when Index wraps, we're done. Don't take a sample, and disable timer interrupt.
+	ld [SampleIndex], A ; [SampleIndex] += 1
+	ld A, 8
+	ld [SampleBit], A ; [SampleBit] = 7
+.noNextIndex
 	ld A, [CGBInfrared]
 	cpl ; A = ~A
-	rra ; shift A right
-	and 1 ; select only last bit
-	ld [HL], A
+	rra
+	rra ; shift A right twice, putting bit 1 into carry
+	ld A, [HL] ; A = current sample at SampleIndex
+	rla ; shift new reading from carry into saved value, pushing other saved values up
+	ld [HL], A ; write back updated sample
+	pop HL
+	pop AF
+	reti
+.stopSampling
+	ld A, [InterruptsEnabled]
+	res 2, A ; disable timer int
+	ld [InterruptsEnabled], A
+	pop HL
+	pop AF
 	reti
 
 section "Core Utility", ROM0
