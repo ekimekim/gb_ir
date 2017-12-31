@@ -210,36 +210,47 @@ WaitForButton::
 
 ; TakeSamples macros
 
-BUDGET EQU 8
-
 NopFor: MACRO
 REPT (\1)
 	nop
 ENDR
 ENDM
 
-; \1 is register to load into, \2 is 0 to not include a "push DE" in the first sample window,
-; or 1 to do so.
-TakeSamplesForReg: MACRO
-	ld A, [C]
-	rra ; first time's a special case: just shift once and you're done
-	ld \1, A
-	NopFor BUDGET - 4
-REPT 6
-	ld A, [C]
-	rra
-	rra ; shift A right twice -> sample bit is now in carry flag
-	rl \1 ; shift carry into D
-	NopFor BUDGET - 6
-ENDR
-ENDM
-
 TakeSamples::
-	ld HL, SP ; for safekeeping. We're going to abuse push as a 16-bit ldi.
+	ld [StackSave], SP ; for safekeeping. We're going to abuse push as a 16-bit ldi.
 	ld SP, Samples + 256
-	ld C, LOW(CGBInfrared) ; cache addr in C for speed
+	ld HL, CGBInfrared ; more flexibility than ld A, [C] and just as fast
 	; A lot of our normal tricks for speed don't work well here, because samples need to be
 	; a consistent timing apart. so eg. unrolling doesn't help since we are constrained by
 	; the _longest_ time between samples.
-.loop
-	
+BUDGET EQU 8
+
+	; First 2 bytes is a special case, no cleanup from prev round
+	ld A, [HL]
+	rra ; first time's a special case: just shift once and you're done
+	ld B, A
+	NopFor BUDGET - 4
+REPT 6
+	ld A, [HL]
+	rra
+	rra ; shift A right twice -> sample bit is now in carry flag
+	rl B ; shift carry into B
+	NopFor BUDGET - 6
+ENDR
+	ld A, [HL]
+	rra ; first time's a special case: just shift once and you're done
+	ld C, A
+	NopFor BUDGET - 4
+REPT 6
+	ld A, [HL]
+	rra
+	rra ; shift A right twice -> sample bit is now in carry flag
+	rl C ; shift carry into C
+	NopFor BUDGET - 6
+ENDR
+
+	; Second and all subsequent blocks interleaves finally writing prev block
+	; with doing samples
+	ld D, [HL] ; no time to do anything with the sample, just shove it elsewhere for now
+	push BC ; actually writes the last 16 samples
+	NopFor BUDGET - 6
