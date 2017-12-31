@@ -151,23 +151,6 @@ InitBGPalette::
 	ret
 
 
-TakeSamples::
-	xor A
-	ld [SampleIndex], A
-	ld A, 8
-	ld [SampleBit], A
-	ld A, [InterruptsEnabled]
-	set 2, A
-	ld [InterruptsEnabled], A
-	; The sampler interrupt will turn itself off when it's done - we probe for that to know when we're done.
-.loop
-	halt ; wait for next interrupt
-	ld A, [InterruptsEnabled]
-	and A
-	jr nz, .loop ; loop if still enabled
-	ret
-
-
 ; Copy rows of sample data into VRAM for display.
 DisplaySamples::
 	ld HL, TileGrid + 32 ; start at second row
@@ -223,3 +206,40 @@ WaitForButton::
 	cp $0f ; if any bits are 0 (!= 0f), a button was pressed
 	jr z, .loop
 	ret
+
+
+; TakeSamples macros
+
+BUDGET EQU 8
+
+NopFor: MACRO
+REPT (\1)
+	nop
+ENDR
+ENDM
+
+; \1 is register to load into, \2 is 0 to not include a "push DE" in the first sample window,
+; or 1 to do so.
+TakeSamplesForReg: MACRO
+	ld A, [C]
+	rra ; first time's a special case: just shift once and you're done
+	ld \1, A
+	NopFor BUDGET - 4
+REPT 6
+	ld A, [C]
+	rra
+	rra ; shift A right twice -> sample bit is now in carry flag
+	rl \1 ; shift carry into D
+	NopFor BUDGET - 6
+ENDR
+ENDM
+
+TakeSamples::
+	ld HL, SP ; for safekeeping. We're going to abuse push as a 16-bit ldi.
+	ld SP, Samples + 256
+	ld C, LOW(CGBInfrared) ; cache addr in C for speed
+	; A lot of our normal tricks for speed don't work well here, because samples need to be
+	; a consistent timing apart. so eg. unrolling doesn't help since we are constrained by
+	; the _longest_ time between samples.
+.loop
+	
