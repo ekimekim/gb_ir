@@ -189,16 +189,16 @@ TakeSamples::
 	; a consistent timing apart. so eg. unrolling doesn't help since we are constrained by
 	; the _longest_ time between samples.
 
-	; This is the mother of all unrolls. But it works.
-	; Takes one sample every 4 cycles.
+	; Takes one sample every 12 cycles.
 	; Takes enough samples to fill the screen with info.
-	; Total sample coverage time: 2^-21 * 4 * 18 * 20 * 8 = 2^-16 * 18 * 20 = 45 * 2^-13 ~= 5.5ms
-	; This is a bit of a problem, since we aren't guarenteed to spot the 60Hz pattern.
-	; It can be almost entirely fixed by expanding the display to cover the whole 32x32 tilegrid
-	; and writing some code to scroll (total coverage would then be 15.625ms), but this will
-	; do for now. We can always slow it down if we must!
-REPT 18*20*8
+	; Total sample coverage time: 2^-21 * 12 * 18 * 20 * 8 = 2^-16 * 18 * 20 = 135 * 2^-13 ~= 16.48ms
+	ld DE, 18*20*8
+.loop
 	ld A, [C]
 	ld [HL+], A
-ENDR
+	nop
+	dec DE
+	ld A, D
+	or E ; set z only if D and E both 0
+	jr nz, .loop
 	ret
