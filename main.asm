@@ -2,19 +2,23 @@ include "hram.asm"
 include "ioregs.asm"
 include "vram.asm"
 include "longcalc.asm"
+include "debug.asm"
 
-SECTION "Stack", WRAM0
+SECTION "Stack", HRAM
 
 StackBase:
-	ds 128
+	ds 64
 Stack:
 
 
-SECTION "Sample data", WRAM0, ALIGN[8]
-
-; Note: aligned
+NUM_SAMPLES EQU 8192
+; Note: Samples extends across both WRAM0 and WRAMX
+SECTION "Sample data", WRAM0[$c000]
 Samples::
-	ds 18*20*8
+	ds 4096
+SECTION "Sample data 2", WRAMX[$d000], BANK[1]
+Samples2::
+	ds NUM_SAMPLES + (-4096)
 
 
 SECTION "Main", ROM0
@@ -28,14 +32,17 @@ Start::
 
 	ld SP, Stack
 
-	; Switch into double-speed mode
+	; Switch into double-speed mode, set up ram bank
 	ld A, 1
 	ld [CGBSpeedSwitch], A
 	stop
+	ld A, BANK(Samples2)
+	ld [CGBWRAMBank], A
 
 	; Init graphics tiles
-	call GenerateTiles
+	call LoadTiles
 	call InitBGPalette
+	call InitScreen
 
 	; Intialize IO register variables
 	ld A, 16 ; One sample per 16*2^-19 = 2^-15, for a full sample length of 256*8*2^-15 = 1/16 sec
@@ -56,54 +63,10 @@ Start::
 
 .mainloop
 	call TakeSamples
+	call ProcessSamples
 	call DisplaySamples
 	call WaitForButton
 	jr .mainloop
-
-
-; Generates a tile for each possible value 0-256 indicating high-low for each bit in order.
-GenerateTiles::
-	ld HL, BaseTileMap
-	ld B, 0
-	; Each tile should look like this:
-	;   00000000
-	;   00000000
-	;   hhhhhhhh
-	;   00000000
-	;   00000000
-	;   llllllll
-	;   00000000
-	;   00000000
-	; where h is on if the corresponding bit is, and l is on if it isn't. ie. the rows are:
-	;   0, 0, index, 0, 0, ~index, 0, 0
-	; To simplify things, we just repeat the values twice since we only care about 2 colors,
-	; ie. our colors are 00 and 11.
-.loop
-	xor A
-	ld [HL+], A
-	ld [HL+], A ; 1st row = 0
-	ld [HL+], A
-	ld [HL+], A ; 2nd row = 0
-	ld A, B
-	ld [HL+], A
-	ld [HL+], A ; 3rd row = index
-	xor A
-	ld [HL+], A
-	ld [HL+], A ; 4th row = 0
-	ld [HL+], A
-	ld [HL+], A ; 5th row = 0
-	ld A, B
-	cpl ; A = ~B
-	ld [HL+], A
-	ld [HL+], A ; 6th row = ~index
-	xor A
-	ld [HL+], A
-	ld [HL+], A ; 7th row = 0
-	ld [HL+], A
-	ld [HL+], A ; 8th row = 0
-	inc B
-	jr nz, .loop
-	ret
 
 
 InitBGPalette::
@@ -115,36 +78,119 @@ InitBGPalette::
 	ret
 
 
+; Zero the screen (kind of - our zero value is " ")
+InitScreen::
+	ld A, " "
+	ld HL, TileGrid
+	ld BC, 32*32
+.loop
+	ld [HL+], A
+	dec C
+	jr nz, .loop
+	dec B
+	jr nz, .loop
+	ret
+
+
+; Convert samples from raw form to something useful
+ProcessSamples::
+	; HL tracks read pointer, DE tracks write pointer.
+	; Since DE moves much slower than HL, we just assume they won't conflict.
+	; We also assume DE will never overflow Samples array.
+	; In this way we replace samples as a list of raw results, with samples as a list of runs
+	; (db value, dw length). values are 0 or 1. $ff is terminator.
+	ld HL, Samples
+	ld DE, Samples
+	; BC counts run length
+	; A tracks current value
+	jr .start
+.next
+	ld A, B
+	ld [DE], A
+	inc DE
+	ld A, C
+	ld [DE], A
+	inc DE ; [DE] = BC and increment DE
+.start
+	ld A, [HL]
+	ld B, A ; temp storage, BC is about to be reset anyway. can't re-read from HL because in first
+	        ; loop DE will overwrite it.
+	cpl
+	and %00000010
+	rra ; A = ~(bit 1 of A)
+	ld [DE], A ; write value of next entry
+	ld A, B ; restore A as raw value
+	inc DE
+	ld BC, 0
+.loop
+	inc BC
+	inc HL
+	push AF
+	LongCP HL, Samples + NUM_SAMPLES ; set z if HL has reached end of Samples
+	jr z, .popAndBreak
+	pop AF
+	cp [HL] ; compare A to new sample
+	jr z, .loop ; if equal, continue counting
+.popAndBreak
+	pop AF
+.break
+	ld A, B
+	ld [DE], A
+	inc DE
+	ld A, C
+	ld [DE], A
+	inc DE ; [DE] = BC and increment DE
+	ld A, $ff
+	ld [DE], A ; write terminator
+	ret
+
+
+; Takes 4-bit value in A and returns a hex digit index
+_NibbleToDigit:
+	add "0"
+	cp "9" + 1 ; set c if <= "9"
+	jr c, .lessThan10
+	add "a" - ("9"+1) ; adjust so that values 10-15 map to a-f
+.lessThan10
+	ret
+
+
+
 ; Copy rows of sample data into VRAM for display.
 DisplaySamples::
 	call WaitForVBlank
 	xor A
 	ld [LCDControl], A ; turn off screen
 
-	ld DE, TileGrid
 	ld HL, Samples
-	ld B, 18
-.outer
-	ld C, 20
-.inner
-	push BC
-	ld B, 0
-REPT 8
-	ld A, [HL+] ; A = raw sample, actual sample is inverted and in bit 1
-	rra
-	rra ; rotate until sample bit is in carry
-	rl B ; rotate carry bit back out into B
-ENDR
-	ld A, B
-	cpl ; invert, so 1 is a high reading
+	ld DE, TileGrid
+
+.loop
+	ld A, [HL+]
+	cp $ff
+	jr z, .break ; terminator value hit, break
+	add "0" ; value is 0 or 1, so this is all that's needed
 	ld [DE], A
 	inc DE
-	pop BC
-	dec C
-	jr nz, .inner
-	LongAdd D,E, 0,12, D,E
-	dec B
-	jr nz, .outer
+	inc DE ; leave a space
+REPT 2
+	ld A, [HL+]
+	ld B, A
+	and $f0
+	swap A
+	call _NibbleToDigit
+	ld [DE], A
+	inc DE
+	ld A, B
+	and $0f
+	call _NibbleToDigit
+	ld [DE], A
+	inc DE
+ENDR
+	LongAdd DE, 32-6, DE ; DE += (32-6), ie. move DE to start of next row
+	LongCP DE, TileGrid + 32*32 ; set z if we've hit the last row
+	jr nz, .loop
+.break
 	; Turn on screen, use unsigned tilemap
 	ld A, %10010000
 	ld [LCDControl], A
@@ -189,16 +235,19 @@ TakeSamples::
 	; a consistent timing apart. so eg. unrolling doesn't help since we are constrained by
 	; the _longest_ time between samples.
 
-	; Takes one sample every 12 cycles.
-	; Takes enough samples to fill the screen with info.
-	; Total sample coverage time: 2^-21 * 12 * 18 * 20 * 8 = 2^-16 * 18 * 20 = 135 * 2^-13 ~= 16.48ms
-	ld DE, 18*20*8
+	; Takes one sample every 8 cycles.
+	; Total coverage = 8192 samples * 8 cycles/sample = 2^12 * 2^3 = 2^15 cycles = 2^-6 seconds
+	; Below loop has some weird counting behaviour - we need to -1 as it runs over the count by 1,
+	; but also +256 because the high byte has an off-by-one error.
+	ld DE, NUM_SAMPLES + 256 - 1
 .loop
 	ld A, [C]
 	ld [HL+], A
-	nop
-	dec DE
-	ld A, D
-	or E ; set z only if D and E both 0
-	jr nz, .loop
+	dec E
+	jr nz, .loop ; 8 cycles if we take the loop
+	dec E ; 8th cycle of prev sample window - dec E again to account for next sample
+	ld A, [C]
+	ld [HL+], A
+	dec D
+	jr nz, .loop ; note the dec D window is also 8 cycles
 	ret
