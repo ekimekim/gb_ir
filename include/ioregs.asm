@@ -1,3 +1,6 @@
+IF !DEF(_G_IOREGS)
+_G_IOREGS EQU "true"
+
 
 ; "P1" Joypad input/output. Bits 6 and 7 are unused (count low to high, so bit 7 is 128)
 ; Bits 4 and 5 are written to to "select" one of two lines.
@@ -251,6 +254,10 @@ CGBDMAControl EQU $ff55
 ; Bit 1 will be unset when a signal is detected, and set otherwise.
 CGBInfrared EQU $ff56
 
+; "SVBK" Game Boy Color WRAM Bank select
+; Write to bits 0-2 of this register to pick WRAMX banks 1-7 (writing 0 also picks bank 1)
+CGBWRAMBank EQU $ff70
+
 ; "IE" Interrupt Enable flags. Write to this register to selectively disable interrupts.
 ; Bits 0-4 control off/on for respectively: VBlank, LCDC, Timer, Serial, Joypad
 InterruptsEnabled EQU $ffff
@@ -260,3 +267,5 @@ IntEnableLCDC EQU 1 << 1
 IntEnableTimer EQU 1 << 2
 IntEnableSerial EQU 1 << 3
 IntEnableJoypad EQU 1 << 4
+
+ENDC
