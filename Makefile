@@ -24,3 +24,6 @@ clean:
 
 debug:
 	./debug
+
+copy: rom.gb
+	copy-rom ir-test rom.gb
