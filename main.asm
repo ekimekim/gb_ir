@@ -14,9 +14,9 @@ Stack:
 NUM_SAMPLES EQU 18
 SECTION "Sample data", WRAM0
 Samples::
-	ds NUM_SAMPLES
+	ds NUM_SAMPLES * 2
 Intermediate1::
-	ds NUM_SAMPLES
+	ds (NUM_SAMPLES + (-2)) * 2
 
 
 SECTION "Main", ROM0
@@ -109,7 +109,7 @@ ProcessStage1:
 	; If at any point we see a $ffff (actually, $ffxx), break.
 	ld B, NUM_SAMPLES-2 ; -2 because we discard first and last
 	ld C, 0
-	ld HL, Samples+1 ; +1 because we discard first
+	ld HL, Samples+2 ; + 1 word because we discard first
 	ld DE, Intermediate1
 .loop
 	ld A, [HL+]
@@ -139,7 +139,6 @@ ProcessStage1:
 .full_pulse
 	cp $ff ; set z if A == $ff
 	jr z, .break
-	inc HL
 	ld A, $ff
 	ld [DE], A
 	inc DE
@@ -147,6 +146,7 @@ ProcessStage1:
 	inc DE
 	inc C ; add ffff to output
 .next
+	inc HL
 	dec B
 	jr nz, .loop
 .break
