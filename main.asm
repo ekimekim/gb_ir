@@ -11,14 +11,10 @@ StackBase:
 Stack:
 
 
-NUM_SAMPLES EQU 8192
-; Note: Samples extends across both WRAM0 and WRAMX
-SECTION "Sample data", WRAM0[$c000]
+NUM_SAMPLES EQU 18
+SECTION "Sample data", WRAM0
 Samples::
-	ds 4096
-SECTION "Sample data 2", WRAMX[$d000], BANK[1]
-Samples2::
-	ds NUM_SAMPLES + (-4096)
+	ds NUM_SAMPLES
 
 
 SECTION "Main", ROM0
@@ -36,8 +32,6 @@ Start::
 	ld A, 1
 	ld [CGBSpeedSwitch], A
 	stop
-	ld A, BANK(Samples2)
-	ld [CGBWRAMBank], A
 
 	; Init graphics tiles
 	call LoadTiles
@@ -63,21 +57,6 @@ Start::
 
 .mainloop
 	call TakeSamples
-
-SetSamples: MACRO
-	ld HL, Samples + \1
-	ld B, \2
-.loop\@
-	ld A, [HL]
-	xor %00000010
-	ld [HL+], A
-	dec B
-	jr nz, .loop\@
-ENDM
-;	SetSamples 512, 16
-	
-
-	call ProcessSamples
 	call DisplaySamples
 	call WaitForButton
 	jr .mainloop
@@ -106,60 +85,6 @@ ClearScreen::
 	ret
 
 
-; Convert samples from raw form to something useful
-ProcessSamples::
-	; HL tracks read pointer, DE tracks write pointer.
-	; Since DE moves much slower than HL, we just assume they won't conflict.
-	; We also assume DE will never overflow Samples array.
-	; In this way we replace samples as a list of raw results, with samples as a list of runs
-	; (db value, dw length). values are 0 or 1. $ff is terminator.
-	ld HL, Samples
-	ld DE, Samples
-	; BC counts run length
-	; A tracks current value
-	jr .start
-.next
-	ld A, B
-	ld [DE], A
-	inc DE
-	ld A, C
-	ld [DE], A
-	inc DE ; [DE] = BC and increment DE
-.start
-	ld A, [HL]
-	ld B, A ; temp storage, BC is about to be reset anyway. can't re-read from HL because in first
-	        ; loop DE will overwrite it.
-	cpl
-	and %00000010
-	rra ; A = ~(bit 1 of A)
-	ld [DE], A ; write value of next entry
-	ld A, B ; restore A as raw value
-	inc DE
-	ld BC, 0
-.loop
-	inc BC
-	inc HL
-	push AF
-	LongCP HL, Samples + NUM_SAMPLES ; set z if HL has reached end of Samples
-	jr z, .popAndBreak
-	pop AF
-	cp [HL] ; compare A to new sample
-	jr z, .loop ; if equal, continue counting
-	jr .next
-.popAndBreak
-	pop AF
-.break
-	ld A, B
-	ld [DE], A
-	inc DE
-	ld A, C
-	ld [DE], A
-	inc DE ; [DE] = BC and increment DE
-	ld A, $ff
-	ld [DE], A ; write terminator
-	ret
-
-
 ; Takes 4-bit value in A and returns a hex digit index
 _NibbleToDigit:
 	add "0"
@@ -181,15 +106,9 @@ DisplaySamples::
 
 	ld HL, Samples
 	ld DE, TileGrid
+	ld C, NUM_SAMPLES
 
 .loop
-	ld A, [HL+]
-	cp $ff
-	jr z, .break ; terminator value hit, break
-	add "0" ; value is 0 or 1, so this is all that's needed
-	ld [DE], A
-	inc DE
-	inc DE ; leave a space
 REPT 2
 	ld A, [HL+]
 	ld B, A
@@ -204,10 +123,10 @@ REPT 2
 	ld [DE], A
 	inc DE
 ENDR
-	LongAdd DE, 32-6, DE ; DE += (32-6), ie. move DE to start of next row
-	LongCP DE, TileGrid + 32*32 ; set z if we've hit the last row
+	LongAdd DE, 32-4, DE ; DE += (32-4), ie. move DE to start of next row
+	dec C
 	jr nz, .loop
-.break
+
 	; Turn on screen, use unsigned tilemap
 	ld A, %10010000
 	ld [LCDControl], A
@@ -246,34 +165,106 @@ WaitForButton::
 
 
 TakeSamples::
-	ld C, LOW(CGBInfrared)
-	ld HL, Samples
-	; A lot of our normal tricks for speed don't work well here, because samples need to be
-	; a consistent timing apart. so eg. unrolling doesn't help since we are constrained by
-	; the _longest_ time between samples.
+	; Populates Samples with time between rising edge of IR signal.
+	; Achieves this by using the HW timer to track time while waiting for the IR value to change.
 
-SAMPLE_CYCLES EQU 16
-_Wait: MACRO
-	REPT \1
-	nop
-	ENDR
-ENDM
+	; First, let's define the interrupt handler we want.
+	; This will run each time the timer overflows.
+	; Note this edits registers! Handle with care.
+	; It also jumps out without returning on overflow, leaving 2 bogus stack entries.
+	; At 2^18 clock rate, overflow takes 0.25s
+PUSHS
+SECTION "Timer interrupt", ROM0[$50]
+	push AF ; save F from effects of inc B
+	inc B
+	jp z, SamplesOverflowed
+	pop AF
+	reti
+POPS
 
-	; Takes one sample every 16 cycles.
-	; Total coverage = 8192 samples * 16 cycles/sample = 2^12 * 2^4 = 2^16 cycles = 2^-5 seconds
-	; Below loop has some weird counting behaviour - we need to -1 as it runs over the count by 1,
-	; but also +256 because the high byte has an off-by-one error.
-	ld DE, NUM_SAMPLES + 256 - 1
-.loop
-	ld A, [C]
-	ld [HL+], A
-	dec E
-	_Wait SAMPLE_CYCLES + (-8)
-	jr nz, .loop ; 8+n cycles if we take the loop
-	dec E ; (8+n)th cycle of prev sample window - dec E again to account for next sample
-	ld A, [C]
-	ld [HL+], A
-	dec D
-	_Wait SAMPLE_CYCLES + (-8)
-	jr nz, .loop ; note the dec D window is also 8+n cycles
+; How much to add to the timer to account for the time between one sample being detected
+; and the timer starting for the next one.
+; Since timer units are 2^-18 = 8 cycles, this should be:
+;   (num cycles from timer stop to timer start) / 8
+; Currently 33 cycles, 33/8 = 4.125
+TIMER_EXTRA EQU 4
+
+	; For as long as interrupts are on and the timer is running, B will be incremented every
+	; time the timer overflows. If B overflows, SamplesOverflowed will be jumped to.
+	; Otherwise, you can then stop the timer then disable interrupts (not the other way, or
+	; else a race can occur where B and TimerCounter are out of sync) and read (B, TimerCounter)
+	; to get elapsed time.
+
+	di
+	ld A, IntEnableTimer
+	ld [InterruptsEnabled], A
+	xor A
+	ld [TimerModulo], A
+	ld HL, CGBInfrared
+	ld DE, Samples
+	ld C, NUM_SAMPLES
+
+.sample
+	xor A
+	ld B, A
+	ld [TimerCounter], A
+	dec A ; A = ff
+	ld H, A ; HL = CGBInfrared, since L is unchanged
+	ld A, TimerEnable | TimerFreq18
+	ld [TimerControl], A ; start timer
+	ei
+
+	; wait until no IR signal
+.waitForZero
+	ld A, [HL] ; A = xxxxxxIx
+	rra ; A = xxxxxxxI
+	rra ; puts I in carry - set = no signal
+	jr nc, .waitForZero
+	rla
+	rla ; A = original again
+
+	; wait until IR signal is different to A
+.waitForRise
+	REPT 28 ; this can be unrolled as much as we like as long as jr instrs still work
+	cp [HL] ; unset z if [HL] has changed
+	jr nz, .break ; break if changed. This is faster than looping if unchanged because jumps
+	              ; that are taken take 1 cycle longer.
+	ENDR 
+	cp [HL] ; unset z if [HL] has changed
+	jr z, .waitForRise ; loop
+.break
+
+	xor A
+	ld [TimerControl], A ; stop timer
+	di
+
+	; [DE] = (B, [TimerCounter]) + TIMER_EXTRA
+	ld A, [TimerCounter]
+	add TIMER_EXTRA
+	ld H, A
+	ld A, 0 ; can't be xor A, this would affect flags
+	adc B
+	ld [DE], A
+	inc DE
+	ld A, H
+	ld [DE], A
+	inc DE
+
+	; decrement count and loop
+	dec C
+	jr nz, .sample
 	ret
+
+SamplesOverflowed:
+	pop AF
+	pop AF ; clear two bogus stack entries
+	ld A, $ff
+	; fill remaining samples with $ffff
+.loop
+	ld [DE], A
+	inc DE
+	ld [DE], A ; [DE] = $ffff
+	inc DE
+	dec C
+	jr nz, .loop
+	ret ; note this returns from TakeSamples
