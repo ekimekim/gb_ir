@@ -42,7 +42,7 @@ Start::
 	; Init graphics tiles
 	call LoadTiles
 	call InitBGPalette
-	call InitScreen
+	call ClearScreen
 
 	; Intialize IO register variables
 	ld A, 16 ; One sample per 16*2^-19 = 2^-15, for a full sample length of 256*8*2^-15 = 1/16 sec
@@ -63,6 +63,20 @@ Start::
 
 .mainloop
 	call TakeSamples
+
+SetSamples: MACRO
+	ld HL, Samples + \1
+	ld B, \2
+.loop\@
+	ld A, [HL]
+	xor %00000010
+	ld [HL+], A
+	dec B
+	jr nz, .loop\@
+ENDM
+;	SetSamples 512, 16
+	
+
 	call ProcessSamples
 	call DisplaySamples
 	call WaitForButton
@@ -79,7 +93,7 @@ InitBGPalette::
 
 
 ; Zero the screen (kind of - our zero value is " ")
-InitScreen::
+ClearScreen::
 	ld A, " "
 	ld HL, TileGrid
 	ld BC, 32*32
@@ -131,6 +145,7 @@ ProcessSamples::
 	pop AF
 	cp [HL] ; compare A to new sample
 	jr z, .loop ; if equal, continue counting
+	jr .next
 .popAndBreak
 	pop AF
 .break
@@ -161,6 +176,8 @@ DisplaySamples::
 	call WaitForVBlank
 	xor A
 	ld [LCDControl], A ; turn off screen
+
+	call ClearScreen
 
 	ld HL, Samples
 	ld DE, TileGrid
