@@ -15,6 +15,8 @@ NUM_SAMPLES EQU 18
 SECTION "Sample data", WRAM0
 Samples::
 	ds NUM_SAMPLES
+Intermediate1::
+	ds NUM_SAMPLES
 
 
 SECTION "Main", ROM0
@@ -57,7 +59,8 @@ Start::
 
 .mainloop
 	call TakeSamples
-	call DisplaySamples
+	call Process
+	call Display
 	call WaitForButton
 	jr .mainloop
 
@@ -85,6 +88,72 @@ ClearScreen::
 	ret
 
 
+; Convert sample timing to an angle in each direction.
+Process::
+	call ProcessStage1
+	; TODO
+	ret
+
+
+; Convert sample timing to a list of items. Each item is either:
+; - A time from 0 to $1100. The fraction thereof is proportional to the detected angle,
+;   ie. 0 is fully left/down, $1100 is fully right/up, $880 is straight ahead.
+; - $ffff. No sweep was detected during this period.'
+; The list is output in Intermediate1, and its length is in C.
+ProcessStage1:
+	; Our approach, which is bad but works well enough for 1 lighthouse in B/C mode:
+	; Drop samples until we find one exceeding $1100. This clearly marks a pulse.
+	; Add an $ffff for it. Henceforth, add an $ffff for any exceeding $1100.
+	; For those less than $1100, add that value, then skip the next one.
+	; ie. save the time until the sweep, discard the time after the sweep.
+	; If at any point we see a $ffff (actually, $ffxx), break.
+	ld B, NUM_SAMPLES-2 ; -2 because we discard first and last
+	ld C, 0
+	ld HL, Samples+1 ; +1 because we discard first
+	ld DE, Intermediate1
+.loop
+	ld A, [HL+]
+	cp 11 ; set c if A < 11
+	jr nc, .full_pulse
+	push HL
+	ld H, A
+	xor A
+	cp C ; set z if C == 0
+	ld A, H
+	pop HL
+	jr z, .next ; skip if we haven't seen any full pulses yet
+	ld [DE], A
+	inc DE
+	ld A, [HL+]
+	ld [DE], A
+	inc DE
+	inc C ; add sample to output
+	inc HL
+	inc HL ; skip next sample
+	ld A, B
+	sub 2
+	ld B, A ; B -= 2, set z or c if B <= 0
+	jr nc, .loop
+	jr nz, .loop
+	jr .break
+.full_pulse
+	cp $ff ; set z if A == $ff
+	jr z, .break
+	inc HL
+	ld A, $ff
+	ld [DE], A
+	inc DE
+	ld [DE], A
+	inc DE
+	inc C ; add ffff to output
+.next
+	dec B
+	jr nz, .loop
+.break
+	ret
+
+
+
 ; Takes 4-bit value in A and returns a hex digit index
 _NibbleToDigit:
 	add "0"
@@ -95,36 +164,61 @@ _NibbleToDigit:
 	ret
 
 
-
-; Copy rows of sample data into VRAM for display.
-DisplaySamples::
+Display::
+	; TODO
+	push BC
 	call WaitForVBlank
 	xor A
 	ld [LCDControl], A ; turn off screen
 
 	call ClearScreen
 
-	ld HL, Samples
 	ld DE, TileGrid
-	ld C, NUM_SAMPLES
+	pop BC ; restore C = Intermediate1 length
+	ld B, 0
 
-.loop
+WriteWord: MACRO
 REPT 2
 	ld A, [HL+]
-	ld B, A
+	push AF
 	and $f0
 	swap A
 	call _NibbleToDigit
 	ld [DE], A
 	inc DE
-	ld A, B
+	pop AF ; A = original value again
 	and $0f
 	call _NibbleToDigit
 	ld [DE], A
 	inc DE
 ENDR
-	LongAdd DE, 32-4, DE ; DE += (32-4), ie. move DE to start of next row
-	dec C
+ENDM
+
+.loop
+	ld A, B
+	add B
+	LongAddToA Samples, HL ; HL = Samples + 2*B
+	WriteWord
+
+	LongAddConst DE, 2 ; leave 2 spaces
+
+	ld A, B
+	cp C ; set c if B < C
+	jr c, .doIntermediate1
+	; we're past the end of intermediate list, don't display
+	LongAddConst DE, 4
+	jr .next
+
+.doIntermediate1
+	add B
+	LongAddToA Intermediate1, HL ; HL = Intermediate1 + 2*B
+	WriteWord
+
+.next
+	LongAdd DE, 32-10, DE ; DE += (32-4), ie. move DE to start of next row
+	inc B
+	ld A, B
+	cp NUM_SAMPLES ; set z if B == NUM_SAMPLES
 	jr nz, .loop
 
 	; Turn on screen, use unsigned tilemap
