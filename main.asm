@@ -252,8 +252,15 @@ TakeSamples::
 	; a consistent timing apart. so eg. unrolling doesn't help since we are constrained by
 	; the _longest_ time between samples.
 
-	; Takes one sample every 8 cycles.
-	; Total coverage = 8192 samples * 8 cycles/sample = 2^12 * 2^3 = 2^15 cycles = 2^-6 seconds
+SAMPLE_CYCLES EQU 16
+_Wait: MACRO
+	REPT \1
+	nop
+	ENDR
+ENDM
+
+	; Takes one sample every 16 cycles.
+	; Total coverage = 8192 samples * 16 cycles/sample = 2^12 * 2^4 = 2^16 cycles = 2^-5 seconds
 	; Below loop has some weird counting behaviour - we need to -1 as it runs over the count by 1,
 	; but also +256 because the high byte has an off-by-one error.
 	ld DE, NUM_SAMPLES + 256 - 1
@@ -261,10 +268,12 @@ TakeSamples::
 	ld A, [C]
 	ld [HL+], A
 	dec E
-	jr nz, .loop ; 8 cycles if we take the loop
-	dec E ; 8th cycle of prev sample window - dec E again to account for next sample
+	_Wait SAMPLE_CYCLES + (-8)
+	jr nz, .loop ; 8+n cycles if we take the loop
+	dec E ; (8+n)th cycle of prev sample window - dec E again to account for next sample
 	ld A, [C]
 	ld [HL+], A
 	dec D
-	jr nz, .loop ; note the dec D window is also 8 cycles
+	_Wait SAMPLE_CYCLES + (-8)
+	jr nz, .loop ; note the dec D window is also 8+n cycles
 	ret
