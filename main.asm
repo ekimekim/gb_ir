@@ -17,7 +17,10 @@ Samples::
 	ds NUM_SAMPLES * 2
 Intermediate1::
 	ds (NUM_SAMPLES + (-2)) * 2
-
+Pitch::
+	dw
+Yaw::
+	dw
 
 SECTION "Main", ROM0
 
@@ -91,7 +94,47 @@ ClearScreen::
 ; Convert sample timing to an angle in each direction.
 Process::
 	call ProcessStage1
-	; TODO
+	; C is length of Intermediate1
+	ld HL, Intermediate1
+	xor A
+	; zero results
+	ld [Pitch], A
+	ld [Pitch+1], A
+	ld [Yaw], A
+	ld [Yaw+1], A
+	; We are looking for a pattern of two 'no sweep's, followed by a pitch then a yaw.
+	; Both are optional.
+	cp C
+	jr z, .break ; C == 0
+	ld B, 2
+.loop
+	ld A, [HL+]
+	cp $ff ; set z if sentinel
+	jr nz, .reset
+	dec B ; set z if this was second sentinel in a row
+	jr nz, .next
+	; this was second in a row, if we have enough entries left then set pitch/yaw
+	inc HL
+	dec C
+	jr z, .break
+	ld A, [HL+]
+	ld [Pitch], A
+	ld A, [HL+]
+	ld [Pitch+1], A
+	dec C
+	jr z, .break
+	ld A, [HL+]
+	ld [Yaw], A
+	ld A, [HL]
+	ld [Yaw+1], A
+	jr .break
+.reset
+	ld B, 2
+.next
+	inc HL
+	dec C
+	jr nz, .loop
+.break
 	ret
 
 
@@ -165,7 +208,6 @@ _NibbleToDigit:
 
 
 Display::
-	; TODO
 	push BC
 	call WaitForVBlank
 	xor A
@@ -207,19 +249,37 @@ ENDM
 	jr c, .doIntermediate1
 	; we're past the end of intermediate list, don't display
 	LongAddConst DE, 4
-	jr .next
+	jr .noIntermediate1
 
 .doIntermediate1
 	add B
 	LongAddToA Intermediate1, HL ; HL = Intermediate1 + 2*B
 	WriteWord
 
+.noIntermediate1
+	LongAddConst DE, 2 ; leave 2 spaces
+
+	ld A, B
+	and A ; set z if B == 0
+	jr nz, .notPitch
+	ld HL, Pitch
+	WriteWord
+	jr .next
+.notPitch
+	dec A ; set z if B == 1
+	jr nz, .notYaw
+	ld HL, Yaw
+	WriteWord
+	jr .next
+.notYaw
+	LongAddConst DE, 4
+
 .next
-	LongAdd DE, 32-10, DE ; DE += (32-4), ie. move DE to start of next row
+	LongAdd DE, 32-16, DE ; move DE to start of next row
 	inc B
 	ld A, B
 	cp NUM_SAMPLES ; set z if B == NUM_SAMPLES
-	jr nz, .loop
+	jp nz, .loop
 
 	; Turn on screen, use unsigned tilemap
 	ld A, %10010000
