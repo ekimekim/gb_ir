@@ -1,0 +1,97 @@
+Basic operation of a location-aware game
+
+# Glossary
+	Signal: Instance of the IR signal going to 1 then 0.
+	Pulse: Timing syncronisation signal at the start of every round.
+	Sweep: The information-carrying signal that occurs during a round.
+	Round: One cycle consisting of a pulse followed by a sweep. 120Hz.
+	Run: Four rounds. 30Hz.
+	In Sync: Having knowledge of when the next pulse will occur, ie. when a round should start.
+
+# Timing
+
+Pulses are long, let's say >70us.
+They occur every 8333us.
+Sweeps occur approximately in the range of 2000-6333us after pulse.
+Yaw sweeps will generally be longer signals than pitch as the
+sensor is rectangular (confirm?)
+
+# Determining location
+
+When not in sync:
+	Clear slots (see below)
+	Poll until you see a >70us pulse
+	Wait ~8000us
+	Poll for up to 500us expecting to see another.
+	If you do, you are now in sync (go to in sync step 1). Otherwise, try again.
+
+This algorithm covers all these situations:
+* Startup
+* Lighthouses not in sight
+* Timings get out of whack or system otherwise gets confused
+
+While in sync, we have a basic operating loop working on top of game logic using timer interrupts:
+1. Immediately after pulse, set timer for ~2000us. We don't expect any signal in this time.
+2. At 2000us, poll for up to ~4333us for signal
+3a. Get signal -> time it. Note the start and duration in current slot (see below).
+3b. No signal -> do nothing, ie. previous slot value is preserved.
+4. Set timer for ~8000us
+5. At ~8000us, poll for up to 500us for signal
+6a. Get signal -> confirm it's >70us to be pulse signal. Goto 1. Otherwise goto 6b.
+6b. No signal or bad signal -> out of sync! go to Not in Sync
+
+We put the signals into 4 slots, call them A B C D. We rotate each round.
+These slots are wiped upon becoming out-of-sync since we no longer know the prior values
+correspond to the same time slot (Lighthouse 1 or 2, pitch or yaw).
+
+Note that since a missed signal preserves the prior slot value, we can tolerate a few missed
+signals every so often.
+
+So now we have 4 values, but 4 ways to interpret them: which are lighthouse 1 and 2, which
+are pitch and yaw?
+Offset A  B  C  D
+     0 1y 1p 2y 2p
+     1 1p 2y 2p 1y
+     2 2y 2p 1y 1p
+     3 2p 1y 1p 2y
+Note that 0 & 2, 1 & 3 are the same if we don't care about which lighthouse is which.
+Which we don't - this means we'll get two solutions but one will be negative which can be discarded.
+So there's only two options: are the (yaw,pitch) pairs (A,B) and (C,D), or are they (B,C) and (D,A)?
+We attempt to work this out by relying on the pitch sweep being faster (because our apeture in that
+axis is smaller). This isn't exact so we use some fuzzy logic here.
+
+After each run (after the 4th step 6a), we look at the two pairs A B and C D.
+We expect that if A is longer than B, (A,B) is a pair. Otherwise we expect (B,C) is a pair.
+We track our observations over time with a signed one-byte *saturating* counter.
+If A is longer than B, we increment. Otherwise we decrement.
+We do the same for C and D.
+
+If we lose sync, this counter is cleared.
+
+Thus as long as we get the same result _most of the time_ we will converge to that result.
+
+Once we have A,B,C,D in pairs, it's basically just a matter of trig to get our position.
+Note that if we've cleared values recently due to being out of sync, some values may be "no value"
+sentinel. In this case, we can try to report pitch/yaw only if we have at least one complete pair,
+or just nothing.
+
+# Game logic
+
+Game logic can happen whenever the timer interrupt isn't doing location-determining things.
+The location code makes available end-result variables for X/Y/Z or pitch/yaw that may change
+at any time.
+
+The bigger question is how to handle vblank, since the timer interrupt must take precedence.
+
+The answer is, very carefully. We should have some form of shadow vram or queue of operations,
+and after doing each section of copy or operation, we should check if we're still in vblank.
+We can assume that if we are in vblank before and after the operation, we were in it the whole
+time (this may not be perfectly true, but should be good enough. We could maybe use a round
+counter or out-of-sync-occurred flag (out-of-sync is the only scenario where timer int can go long
+enough to wrap around into the next vblank) to catch these scenarios), and the operation worked.
+Otherwise, we should assume the operation only partially worked and needs to be re-done.
+
+We cannot use DMA as this requires disabling interrupts.
+
+Note this means the game may lag depending on position. The game should ensure it can run smoothly
+with the least amount of time possible (approx 4000us/8333us or 50% normal cpu).
