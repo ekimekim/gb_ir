@@ -21,11 +21,12 @@ sensor is rectangular (confirm?)
 When not in sync:
 	Clear slots (see below)
 	Poll until you see a >70us pulse
-	Wait ~8000us
-	Poll for up to 500us expecting to see another.
-	If you do, you are now in sync (go to in sync step 1). Otherwise, try again.
+	Wait ~8000us until next pulse is expected.
+	Go to in-sync step 5, ie. if we get it when we expect then we're confirmed in sync
+		and continue from there. Otherwise we try again. This should eliminate false positives
+		eg. if a sweep lasts as long as our min pulse duration.
 
-This algorithm covers all these situations:
+This state covers all these situations:
 * Startup
 * Lighthouses not in sight
 * Timings get out of whack or system otherwise gets confused
