@@ -23,3 +23,7 @@ Pitch1 rw 1
 Forward rw 1
 Side rw 1
 Height rw 1
+
+; Used by vblank handler, set by LCD Stat to tell when vblank is over.
+; Set to 0 at start of vblank and set to 1 when it ends.
+VBlankEnded rb 1

@@ -92,6 +92,10 @@ counter or out-of-sync-occurred flag (out-of-sync is the only scenario where tim
 enough to wrap around into the next vblank) to catch these scenarios), and the operation worked.
 Otherwise, we should assume the operation only partially worked and needs to be re-done.
 
+Alternate idea: Instead of checking LDY, we can just set a LCD Status interrupt to fire upon
+vblank exit. Even if it's shadowed by a timer interrupt, it will fire before control returns to
+the vblank handler.
+
 We cannot use DMA as this requires disabling interrupts.
 
 Note this means the game may lag depending on position. The game should ensure it can run smoothly
