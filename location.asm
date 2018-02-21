@@ -20,17 +20,21 @@ SetTimer: MACRO
 	res 2, A ; reset timer flag
 	ld [InterruptFlags], A
 	ld A, HIGH(\2)
-	ld [TimerTrampoline], A
+	ld [TimerTrampolineHigh], A
 	ld A, LOW(\2)
-	ld [TimerTrampoline + 1], A
+	ld [TimerTrampolineLow], A
 ENDM
 
 SECTION "Location data", WRAM0
 
 ; Trampoline to direct timer interrupt to a chosen handler.
-; Handlers may safely clobber AF and HL and should ret (not reti).
-TimerTrampoline::
-	dw
+; First byte must be $c3 (for opcode jp nnmm == c3 mm nn)
+TimerTrampolineExec::
+	db
+TimerTrampolineLow:
+	db
+TimerTrampolineHigh:
+	db
 
 ; The ptr is 0-3 and indicates the next entry to write in Angles and Durations
 LocDataPtr:
@@ -63,8 +67,11 @@ LocationStop::
 ; Clobbers A, B, HL
 OutOfSync::
 	di
-	xor A
+	; init timer trampoline
+	ld A, $c3
+	ld [TimerTrampolineExec], A
 	; init things to 0
+	xor A
 	ld [LocDataPtr], A
 	ld [FirstIsYaw], A
 	ld [LocDurations], A
@@ -93,19 +100,32 @@ OutOfSync::
 	; so we instead sleep until sweep window as normal, but install a dummy handler to simply
 	; go to sleep again.
 	SetTimer TIME_PULSE_TO_SWEEP_64c, _OutOfSyncDummyHandler
+
+	; Clear and enable timer interrupt
+	ld A, [InterruptFlags]
+	res 2, A
+	ld [InterruptFlags], A
+	ld A, [InterruptsEnabled]
+	set 2, A
+	ld [InterruptFlags], A
+
 	reti
 
 _OutOfSyncDummyHandler:
+	push AF
 	xor A
 	SetTimer TIME_SWEEP_TO_PULSE_64c, PulseHandler
-	ret
+	pop AF
+	reti
 
 
 ; The simpler handler, it polls for the sweep, marks down the measurements, then sets timer
 ; for when the pulse is expected.
 SweepHandler:
+	push AF
 	push BC
 	push DE
+	push HL
 	call PollForSweep ; DE = wait, A = duration or 0 on fail
 	and A ; set z if failed
 	jr z, .failed
@@ -133,23 +153,29 @@ SweepHandler:
 	; Note our result can be up to (1136+255)/8 = 173, which is less than TIME_SWEEP_TO_PULSE.
 	; So we don't need to worry about underflow here.
 	SetTimer TIME_SWEEP_TO_PULSE, PulseHandler
+	pop HL
 	pop DE
 	pop BC
-	ret
+	pop AF
+	reti
 
 
 ; The pulse handler re-syncs to the pulse, sets up for the next sweep,
 ; goes over the gathered data and possibly publishes an updated location.
 PulseHandler:
+	push AF
 	push BC
+	push HL
 	call PollForPulse ; sets A = duration, or 0 if no pulse
 	and A ; set z if no pulse
 
 	jr nz, .success
 	; Didn't get a pulse within tolerance, we must be out of sync
 	call OutOfSync
+	pop HL
 	pop BC
-	ret
+	pop AF
+	reti
 .success
 
 	; Convert units of 8c to units of 64c by shifting right 3 times
@@ -265,5 +291,7 @@ ENDM
 	ld [Updated], A
 
 	pop DE
+	pop HL
 	pop BC
-	ret
+	pop AF
+	reti

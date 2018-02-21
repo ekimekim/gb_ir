@@ -31,18 +31,32 @@ Restart7::
 section "VBlank Interrupt handler", ROM0 [$40]
 ; triggered upon VBLANK period starting
 IntVBlank::
-	reti
+	jp VBlankHandler
+
 section "LCDC Interrupt handler", ROM0 [$48]
 ; Also known as STAT handler
 ; LCD controller changed state
 IntLCDC::
+	push AF
+	ld A, 1
+	ld [VBlankEnded], A
+	pop AF
 	reti
 
-; Timer interrupt is defined elsewhere
-;section "Timer Interrupt handler", ROM0 [$50]
-;; A configurable amount of time has passed
-;IntTimer::
-;	reti
+section "Timer Interrupt handler", ROM0 [$50]
+; A configurable amount of time has passed
+IntTimer::
+	jp TimerTrampolineExec
+
+section "Serial Interrupt handler", ROM0 [$58]
+; Serial transfer is complete
+IntSerial::
+	reti
+
+section "Joypad Interrupt handler", ROM0 [$60]
+; Change in joystick state
+IntJoypad::
+	reti
 
 section "Core Utility", ROM0
 HaltForever::
