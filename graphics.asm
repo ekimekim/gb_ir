@@ -126,3 +126,29 @@ VBlankHandler::
 	; wrap HL on overflow
 	ld HL, GraphicsQueueAddrs
 	jr .post_overflow
+
+
+; Enqueue a VRAM write of value B to DE.
+; May block indefinitely until there is space in the queue.
+; Clobbers A, C, HL.
+GraphicsWrite::
+	ld HL, GraphicsQueueHead
+	ld A, [HL+] ; A = head. Note head can't change in interrupt, only tail.
+	inc A
+.wait_loop
+	cp [HL] ; set z if head + 1 == tail, ie. we're full
+	jr z, .wait_loop ; loop until we aren't full, as tail can be changed by interrupt
+	ld C, A
+	LongAddToA HL, HL ; HL += A, ie. HL = &tail + head + 1 = addrs + head
+	ld A, C ; A = head + 1
+	LongAddToA HL, HL ; HL += A, so now HL = addrs + 2*head + 1
+	ld A, E
+	ld [HL-], A ; set lower byte of addr and point HL at addrs + 2*head
+	ld [HL], D ; set upper byte of addr
+	ld H, HIGH(GraphicsQueueValues)
+	ld L, C ; L = head + 1
+	dec L ; L = head, ie. HL = values + head
+	ld [HL], B ; set value
+	ld A, C
+	ld [GraphicsQueueHead], A ; set updated head. This must be last for interrupt safety.
+	ret
