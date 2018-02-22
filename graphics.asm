@@ -1,4 +1,6 @@
-
+include "hram.asm"
+include "ioregs.asm"
+include "longcalc.asm"
 
 ; These methods govern access to VRAM.
 ; We need to be careful when accessing VRAM during vblank, because timer interrupts

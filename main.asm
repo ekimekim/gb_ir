@@ -327,14 +327,14 @@ TakeSamples::
 	; Note this edits registers! Handle with care.
 	; It also jumps out without returning on overflow, leaving 2 bogus stack entries.
 	; At 2^18 clock rate, overflow takes 0.25s
-PUSHS
-SECTION "Timer interrupt", ROM0[$50]
-	push AF ; save F from effects of inc B
-	inc B
-	jp z, SamplesOverflowed
-	pop AF
-	reti
-POPS
+;PUSHS
+;SECTION "Timer interrupt", ROM0[$50]
+;	push AF ; save F from effects of inc B
+;	inc B
+;	jp z, SamplesOverflowed
+;	pop AF
+;	reti
+;POPS
 
 ; How much to add to the timer to account for the time between one sample being detected
 ; and the timer starting for the next one.

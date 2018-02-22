@@ -1,3 +1,6 @@
+include "hram.asm"
+include "ioregs.asm"
+include "longcalc.asm"
 
 ; Code for determining our location. This covers the high level logic.
 
@@ -152,7 +155,7 @@ SweepHandler:
 	rra
 	; Note our result can be up to (1136+255)/8 = 173, which is less than TIME_SWEEP_TO_PULSE.
 	; So we don't need to worry about underflow here.
-	SetTimer TIME_SWEEP_TO_PULSE, PulseHandler
+	SetTimer TIME_SWEEP_TO_PULSE_64c, PulseHandler
 	pop HL
 	pop DE
 	pop BC
@@ -188,10 +191,10 @@ PulseHandler:
 	SetTimer TIME_PULSE_TO_SWEEP_64c, PulseHandler
 
 	; Rotate the data pointer
-	ld A, [DataPtr]
+	ld A, [LocDataPtr]
 	inc A
 	and %00000011 ; mod 4
-	ld [DataPtr], A
+	ld [LocDataPtr], A
 
 	push DE
 
@@ -295,3 +298,7 @@ ENDM
 	pop BC
 	pop AF
 	reti
+
+
+TryCalculatePosition::
+	ret ; TODO

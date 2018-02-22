@@ -1,10 +1,11 @@
 
 include "ioregs.asm"
+include "longcalc.asm"
 
 ; Code for detecting IR signals. Doesn't include any of the higher logic.
 
-IR_OFF EQU 0xfe
-IR_ON EQU 0xfc
+IR_OFF EQU $fe
+IR_ON EQU $fc
 
 ; Tolerances for various times. Suffix indicates units, c is cycles.
 TOL_PULSE_WAIT_8c EQU 128 ; 488us
@@ -95,7 +96,7 @@ PollForSweep::
 	; Note neither D or E can be zero or there are bugs! We cop out of fixing this by
 	; simply disallowing bad values.
 	ld DE, TOL_SWEEP_WAIT_8c
-IF HIGH(TOL_SWEEP_WAIT_8c) == 0 || LOW(TOL_SWEEP_WAIT_8c)
+IF TOL_SWEEP_WAIT_8c / 256 == 0 || TOL_SWEEP_WAIT_8c % 256 == 0
 	FAIL "TOL_SWEEP_WAIT_8c cannot have 0 in upper or lower byte."
 ENDC
 
