@@ -40,18 +40,18 @@ TimerTrampolineHigh:
 	db
 
 ; The ptr is 0-3 and indicates the next entry to write in Angles and Durations
-LocDataPtr:
+LocDataPtr::
 	db
 ; Each word is an angle from 0 to 1136 or ffff for unknown
-LocAngles:
+LocAngles::
 	ds 2*4
 ; Each byte is a duration from 1 to ff or 0 for unknown
-LocDurations:
+LocDurations::
 	ds 4
 
 ; This saturating, signed counter is used to track whether LocAngles[0] is more likely
 ; to be a pitch or a yaw. Positive means yaw.
-FirstIsYaw:
+FirstIsYaw::
 	db
 
 SECTION "Location methods", ROM0
