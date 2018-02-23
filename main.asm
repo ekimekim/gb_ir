@@ -79,13 +79,13 @@ ClearScreen::
 
 ; Block until next update to location
 WaitForUpdate::
-	xor A
+	ld A, 1
 	ld [Updated], A
 .loop
 	halt
 	ld A, [Updated]
 	and A ; set z if 0
-	jr z, .loop
+	jr nz, .loop
 	ret
 
 
@@ -110,8 +110,9 @@ _WriteByte:
 	call GraphicsWrite
 	pop BC
 	inc DE
-	ld A, B
+	ld A, C
 	and $0f
+	call NibbleToDigit
 	ld B, A
 	call GraphicsWrite
 	inc DE
@@ -124,12 +125,12 @@ Display::
 
 WriteByte: MACRO
 	ld A, [\1]
-	ld DE, (\2 * 32 + \3)
+	ld DE, (TileGrid + \2 * 32 + \3)
 	call _WriteByte
 ENDM
 
 WriteWord: MACRO
-	ld DE, (\2 * 32 + \3)
+	ld DE, (TileGrid + \2 * 32 + \3)
 	ld A, [\1]
 	call _WriteByte
 	ld A, [(\1) + 1]

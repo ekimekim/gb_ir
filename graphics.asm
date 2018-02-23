@@ -37,7 +37,7 @@ GraphicsInit::
 	; init queue
 	xor A
 	ld [GraphicsQueueHead], A
-	ld [GraphicsQueueHead], A
+	ld [GraphicsQueueTail], A
 	; set up LCDStatus and LCDYCompare to fire when LY == 0, ie. when vblank ends.
 	ld [LCDYCompare], A
 	ld A, %01000100 ; trigger on LY == LYC
@@ -59,11 +59,11 @@ VBlankHandler::
 	ld A, [InterruptsEnabled]
 	res 0, A
 	ld [InterruptsEnabled], A
-	ei
 
 	; Set up flag to tell us when vblank ends
 	xor A
 	ld [VBlankEnded], A
+	ei
 
 	ld HL, GraphicsQueueTail
 	ld B, HIGH(GraphicsQueueValues)
@@ -71,9 +71,9 @@ VBlankHandler::
 	ld C, A ; C = graphics tail. since Values is aligned, BC = offset into Values to read.
 	; Note HL is now GraphicsQueueAddrs
 
+	LongAddToA HL, HL ; HL = addrs + c
 	ld A, C
-	add C
-	LongAddToA HL, HL ; HL += 2C, ie. HL = offset into Addrs to read.
+	LongAddToA HL, HL ; HL = addrs + 2C, ie. HL = offset into Addrs to read.
 
 	; Check if queue is empty
 	ld A, [GraphicsQueueHead]

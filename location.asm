@@ -104,13 +104,10 @@ OutOfSync::
 	; go to sleep again.
 	SetTimer TIME_PULSE_TO_SWEEP_64c, _OutOfSyncDummyHandler
 
-	; Clear and enable timer interrupt
-	ld A, [InterruptFlags]
-	res 2, A
-	ld [InterruptFlags], A
+	; Enable timer interrupt
 	ld A, [InterruptsEnabled]
 	set 2, A
-	ld [InterruptFlags], A
+	ld [InterruptsEnabled], A
 
 	reti
 
@@ -188,7 +185,7 @@ PulseHandler:
 	rrca
 	; Set timer to begin sweep window later.
 	; We still have more work to do here but it will easily be done in time.
-	SetTimer TIME_PULSE_TO_SWEEP_64c, PulseHandler
+	SetTimer TIME_PULSE_TO_SWEEP_64c, SweepHandler
 
 	; Rotate the data pointer
 	ld A, [LocDataPtr]
