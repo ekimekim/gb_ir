@@ -24,11 +24,21 @@ Start::
 	ld [SoundControl], A
 	ld [LCDControl], A
 
+
 	; Init as much of RAM as possible to "rst 0" to catch bad jumps
-	; Macro: start addr, len
+	ld A, $c7
+
+;	ld HL, $c000 ; c000-c300
+;	ld B, 128 + 64
+;.loop
+;	REPT 4
+;	ld [HL+], A
+;	ENDR
+;	dec B
+;	jr nz, .loop
+
 	ld HL, $c000
 	ld B, 127 ; 128 loops * 64 per loop = $2000 = $c000 - $dfff
-	ld A, $c7
 	ld [HL+], A
 .wramloop
 	REPT 64
@@ -43,6 +53,11 @@ Start::
 	ld [HL+], A
 	dec B
 	jr nz, .hramloop
+
+	; c300 = ff forces the bad behaviour
+	ld A, $ff
+	ld [$c300], A
+	ld [$c301], A
 
 	ld SP, Stack
 
