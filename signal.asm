@@ -19,9 +19,6 @@ SECTION "Signal methods", ROM0
 ; TOL_PULSE_DURATION. If so, returns duration in A. Otherwise keep looping until you succeed.
 ; Clobbers A, B, HL.
 PollForPulseForever::
-	ld B, 20 ; TEST
-	ld A, B ; TEST
-	ret ; TEST
 	push BC
 .start
 	ld A, 8
@@ -81,9 +78,6 @@ PollForPulseForever::
 ; TOL_PULSE_DURATION. If so, returns duration in A. Otherwise returns 0 in A.
 ; Clobbers A, B, HL
 PollForPulse::
-	ld B, 20 ; TEST
-	ld A, B ; TEST
-	ret ; TEST
 	ld HL, CGBInfrared
 	ld A, IR_OFF
 	ld B, 0
