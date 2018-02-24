@@ -198,7 +198,6 @@ ENDM
 
 	WriteByte LocDataPtr, 1, 1 ; 1-2
 	WriteByte FirstIsYaw, 1, 4 ; 4-5
-	WriteByte StatOutOfSync, 1, 7 ; 7-8
 
 	WriteByte LocDurations + 0, 3, 1 ; 1-2
 	WriteByte LocDurations + 1, 4, 1 ; 1-2
@@ -221,5 +220,10 @@ ENDM
 
 	WriteByte GraphicsQueueHead, 10, 1 ; 1-2
 	WriteByte GraphicsQueueTail, 10, 4 ; 4-5
+
+	WriteByte StatOutOfSync, 12, 1
+	WriteByte StatPulseNoSignal, 12, 4
+	WriteByte StatPulseTooLong, 12, 7
+	WriteByte StatPulseTooShort, 12, 10
 
 	ret

@@ -1,5 +1,5 @@
-
 include "constants.asm"
+include "hram.asm"
 include "ioregs.asm"
 include "longcalc.asm"
 
@@ -81,7 +81,7 @@ PollForPulse::
 	; Wait until signal starts. We track time in B. Note loop is 8 cycles.
 .wait_for_rise
 	inc B
-	jr z, .fail
+	jr z, .fail_no_signal
 	cp [HL]
 	jr z, .wait_for_rise
 
@@ -89,7 +89,7 @@ PollForPulse::
 	; Wait until signal ends. We track duration in B. Note loop is 8 cycles.
 .wait_for_fall
 	inc B
-	jr z, .fail
+	jr z, .fail_too_long
 	cp [HL]
 	jr nz, .wait_for_fall
 
@@ -97,10 +97,17 @@ PollForPulse::
 	ld A, B
 	cp TOL_PULSE_DURATION_8c ; set c if B < acceptable duration
 	jr nc, .success
+	IncStat StatPulseTooShort
 .fail
 	xor A
 .success
 	ret
+.fail_no_signal
+	IncStat StatPulseNoSignal
+	jr .fail
+.fail_too_long
+	IncStat StatPulseTooLong
+	jr .fail
 
 
 ; Wait for up to TOL_SWEEP_WAIT for the next signal. If one occurs, return

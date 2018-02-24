@@ -30,3 +30,13 @@ VBlankEnded rb 1
 
 ; Stats intended for debugging. These count various events.
 StatOutOfSync rb 1
+StatPulseNoSignal rb 1
+StatPulseTooShort rb 1
+StatPulseTooLong rb 1
+StatRoundsInSync rb 1
+
+IncStat: MACRO
+	ld A, [\1]
+	inc A
+	ld [\1], A
+ENDM

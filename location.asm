@@ -187,6 +187,8 @@ PulseHandler:
 	; We still have more work to do here but it will easily be done in time.
 	SetTimer TIME_PULSE_TO_SWEEP_64c, SweepHandler
 
+	IncStat StatRoundsInSync
+
 	; Rotate the data pointer
 	ld A, [LocDataPtr]
 	inc A
