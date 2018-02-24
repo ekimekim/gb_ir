@@ -60,9 +60,20 @@ IntJoypad::
 
 section "Core Utility", ROM0
 HaltForever::
+	; Change all colors in pallette 1 to red to indicate crash
+	ld A, %10000000 ; index 0 with autoincrement
+	ld [TileGridPaletteIndex], A
+	ld HL, TileGridPaletteData
+	ld B, 8
+.loop
+	ld [HL], %00011111
+	ld [HL], 0
+	dec B
+	jr nz, .loop
+.forever
 	halt
 	; halt can be recovered from after an interrupt or reset, so halt again
-	jp HaltForever
+	jp .forever
 
 section "Header", ROM0 [$100]
 ; This must be nop, then a jump, then blank up to 150

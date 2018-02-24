@@ -13,7 +13,8 @@ all: rom.gb
 	rgbasm -i include/ -v -o $@ $<
 
 rom.gb: $(OBJS)
-	rgblink -n rom.sym -o $@ $^
+# pad with C7 = restart 0 = HaltForever
+	rgblink -n rom.sym -o $@ -p 0xC7 $^
 	rgbfix -v -p 0 -C $@
 
 bgb: rom.gb

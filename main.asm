@@ -10,6 +10,11 @@ StackBase:
 	ds 64
 Stack:
 
+
+SECTION "Guard", ROMX[$7fff], BANK[1]
+
+rst 0
+
 SECTION "Main", ROM0
 
 
@@ -18,6 +23,26 @@ Start::
 	xor A
 	ld [SoundControl], A
 	ld [LCDControl], A
+
+	; Init as much of RAM as possible to "rst 0" to catch bad jumps
+	; Macro: start addr, len
+	ld HL, $c000
+	ld B, 127 ; 128 loops * 64 per loop = $2000 = $c000 - $dfff
+	ld A, $c7
+	ld [HL+], A
+.wramloop
+	REPT 64
+	ld [HL+], A
+	ENDR
+	dec B
+	jr nz, .wramloop
+
+	ld HL, $ff80
+	ld B, 127
+.hramloop
+	ld [HL+], A
+	dec B
+	jr nz, .hramloop
 
 	ld SP, Stack
 
