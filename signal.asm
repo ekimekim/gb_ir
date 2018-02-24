@@ -1,4 +1,5 @@
 
+include "constants.asm"
 include "ioregs.asm"
 include "longcalc.asm"
 
@@ -6,11 +7,6 @@ include "longcalc.asm"
 
 IR_OFF EQU $fe
 IR_ON EQU $fc
-
-; Tolerances for various times. Suffix indicates units, c is cycles.
-TOL_PULSE_WAIT_8c EQU 128 ; 488us
-TOL_PULSE_DURATION_8c EQU 18 ; 68us
-TOL_SWEEP_WAIT_8c EQU 1136 ; 4333us
 
 SECTION "Signal methods", ROM0
 

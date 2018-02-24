@@ -1,15 +1,9 @@
+include "constants.asm"
 include "hram.asm"
 include "ioregs.asm"
 include "longcalc.asm"
 
 ; Code for determining our location. This covers the high level logic.
-
-; Various timing details, in timer units of 64 cycles (TIMER_FREQ_14)
-; How long after pulse start we should begin polling for sweep
-TIME_PULSE_TO_SWEEP_64c EQU 65 ; 1983us
-; How long after sweep window start we should begin polling for pulse
-TIME_SWEEP_TO_PULSE_64c EQU 196 ; 6012us
-; Note this means from pulse to pulse = 7995us
 
 ; Macro that sets up the timer to fire after (\1 - A) units of 64 cycles,
 ; then calls handler \2.
