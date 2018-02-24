@@ -63,7 +63,15 @@ VBlankHandler::
 	; Set up flag to tell us when vblank ends
 	xor A
 	ld [VBlankEnded], A
+
 	ei
+
+	; But that only works if we aren't already past that point - did we _start_ in vblank?
+	; (A long-running timer interrupt might mean we start very late)
+	ld A, [LCDStatus]
+	and %00000011 ; select bottom 2 bits
+	dec A ; set z if it was 1, ie. we're in vblank
+	jr nz, .finish
 
 	ld HL, GraphicsQueueTail
 	ld B, HIGH(GraphicsQueueValues)
@@ -92,7 +100,7 @@ VBlankHandler::
 	; Check if we're still in vblank
 	ld A, [VBlankEnded]
 	and A ; set z if we're still in vblank
-	jr nz, .finish
+	jr nz, .break
 
 	; Success - advance tail
 	inc C ; set z on overflow
@@ -104,16 +112,15 @@ VBlankHandler::
 	cp C ; set z if head == tail and queue is empty
 	jr nz, .loop
 
-.finish
+.break
 
 	; Write back updated tail value
 	ld A, C
 	ld [GraphicsQueueTail], A
 
-	; Re-enable vblank, but also clear it in case there's one pending
-	ld A, [InterruptFlags]
-	res 0, A
-	ld [InterruptFlags], A
+.finish
+
+	; Re-enable vblank
 	ld A, [InterruptsEnabled]
 	set 0, A
 	ld [InterruptsEnabled], A

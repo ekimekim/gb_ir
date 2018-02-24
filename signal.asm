@@ -43,7 +43,7 @@ PollForPulseForever::
 	; Check if duration was acceptable
 	ld A, B
 	cp TOL_PULSE_DURATION_8c ; set c if B < acceptable duration
-	jr c, .wait_for_zero ; try again
+	jr c, PollForPulseForever ; try again
 
 	ret
 
