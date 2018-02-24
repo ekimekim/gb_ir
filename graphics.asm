@@ -147,17 +147,19 @@ GraphicsWrite::
 .wait_loop
 	cp [HL] ; set z if head + 1 == tail, ie. we're full
 	jr z, .wait_loop ; loop until we aren't full, as tail can be changed by interrupt
+	dec A
 	ld C, A
-	LongAddToA HL, HL ; HL += A, ie. HL = &tail + head + 1 = addrs + head
-	ld A, C ; A = head + 1
-	LongAddToA HL, HL ; HL += A, so now HL = addrs + 2*head + 1
-	ld A, E
-	ld [HL-], A ; set lower byte of addr and point HL at addrs + 2*head
-	ld [HL], D ; set upper byte of addr
+	LongAddToA HL, HL ; HL += A, ie. HL = &tail + head = addrs + head - 1
+	ld A, C ; A = head
+	LongAddToA HL, HL ; HL += A, so now HL = addrs + 2*head - 1
+	inc HL ; HL = addrs + 2*head
+	ld A, D
+	ld [HL+], A ; set upper byte of addr and point HL at addrs + 2*head
+	ld [HL], E ; set lower byte of addr
 	ld H, HIGH(GraphicsQueueValues)
-	ld L, C ; L = head + 1
-	dec L ; L = head, ie. HL = values + head
+	ld L, C ; L = head, ie. HL = values + head
 	ld [HL], B ; set value
 	ld A, C
+	inc A
 	ld [GraphicsQueueHead], A ; set updated head. This must be last for interrupt safety.
 	ret
