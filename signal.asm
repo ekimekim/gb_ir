@@ -19,33 +19,59 @@ SECTION "Signal methods", ROM0
 ; TOL_PULSE_DURATION. If so, returns duration in A. Otherwise keep looping until you succeed.
 ; Clobbers A, B, HL.
 PollForPulseForever::
+	push BC
+.start
+	ld A, 8
+	ld [WindowX], A
+	ld A, 136
+	ld [WindowY], A
+
 	ld HL, CGBInfrared
 	ld A, IR_OFF
 	ld B, 0
+	ld C, 6
 
 	; Wait until there's NO signal so we can catch rising edge
 .wait_for_zero
 	cp [HL]
 	jr nz, .wait_for_zero
 
-	; Wait until there's a signal
+	; Wait until there's a signal. B counts to 256 every time we want to increment the window position.
 .wait_for_rise
+	inc B
+	jr z, .inc_window
+.inc_window_ret
 	cp [HL]
 	jr z, .wait_for_rise
 
+	ld B, 0
 	; Signal started. We track duration in B. Note loop is 8 cycles.
 .wait_for_fall
 	inc B
-	jr z, .wait_for_zero ; overflow duration, wait for the next one
+	jr z, .start ; overflow duration, wait for the next one
 	cp [HL]
 	jr nz, .wait_for_fall
+
+	ld A, $ff
+	ld [WindowX], A
 
 	; Check if duration was acceptable
 	ld A, B
 	cp TOL_PULSE_DURATION_8c ; set c if B < acceptable duration
-	jr c, PollForPulseForever ; try again
+	jr c, .start ; try again
 
+	pop BC
 	ret
+
+.inc_window
+	dec C
+	jr nz, .inc_window_ret
+	ld C, 6
+	ld A, [WindowX]
+	inc A
+	ld [WindowX], A
+	ld A, IR_OFF
+	jr .inc_window_ret
 
 
 ; Wait up to TOL_PULSE_WAIT for the next signal, and check its duration is over

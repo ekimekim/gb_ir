@@ -42,8 +42,8 @@ Start::
 	; Intialize infrared sensor to always sense. Wasteful for power, but meh.
 	ld A, %11000000
 	ld [CGBInfrared], A
-	; Turn on screen, use unsigned tilemap
-	ld A, %10010000
+	; Turn on screen, window on alt tile grid, window on, use unsigned tilemap
+	ld A, %11110000
 	ld [LCDControl], A
 
 	call OutOfSync ; get in sync with infrared signals and enable interrupts
@@ -74,6 +74,16 @@ ClearScreen::
 	jr nz, .loop
 	dec B
 	jr nz, .loop
+
+	; Top row of window should be fully black
+	ld HL, AltTileGrid
+	ld B, 20
+	ld A, $7f
+.loop2
+	ld [HL+], A
+	dec B
+	jr nz, .loop2
+
 	ret
 
 
