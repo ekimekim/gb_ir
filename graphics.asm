@@ -16,9 +16,9 @@ SECTION "Graphics ram", WRAM0
 ; Tail is the position to be next read.
 ; When head == tail, ring is empty.
 ; When head == tail - 1, ring is full.
-GraphicsQueueHead:
+GraphicsQueueHead::
 	db
-GraphicsQueueTail:
+GraphicsQueueTail::
 	db
 
 GraphicsQueueAddrs:

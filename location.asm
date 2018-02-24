@@ -70,6 +70,12 @@ LocationStop::
 ; Clobbers A, B, HL
 OutOfSync::
 	di
+
+	; increment count
+	ld A, [StatOutOfSync]
+	inc A
+	ld [StatOutOfSync], A
+
 	; init timer trampoline
 	ld A, $c3
 	ld [TimerTrampolineExec], A

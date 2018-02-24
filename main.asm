@@ -138,14 +138,17 @@ WriteWord: MACRO
 ENDM
 
 	; For debugging, we're going to display intermediate values as well as final products.
-	; First row: DataPtr, FirstIsYaw
+	; First row: DataPtr, FirstIsYaw, StatOutOfSync
 	; SPACE
 	; Rows 3-6: Duration, Angle, (Yaw/Pitch)(0/1)
 	; SPACE
 	; Row 8: Forward, Side, Height
+	; SPACE
+	; Row 10: Graphics Queue Head and Tail
 
 	WriteByte LocDataPtr, 1, 1 ; 1-2
 	WriteByte FirstIsYaw, 1, 4 ; 4-5
+	WriteByte StatOutOfSync, 1, 7 ; 7-8
 
 	WriteByte LocDurations + 0, 3, 1 ; 1-2
 	WriteByte LocDurations + 1, 4, 1 ; 1-2
@@ -165,5 +168,8 @@ ENDM
 	WriteWord Forward, 8, 1  ; 1-4
 	WriteWord Side,    8, 6  ; 6-9
 	WriteWord Height,  8, 11 ; 11-14
+
+	WriteByte GraphicsQueueHead, 10, 1 ; 1-2
+	WriteByte GraphicsQueueTail, 10, 4 ; 4-5
 
 	ret
