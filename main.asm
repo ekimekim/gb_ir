@@ -70,6 +70,7 @@ Start::
 	call LoadTiles
 	call InitBGPalette
 	call ClearScreen
+	call InitSound
 
 	; Intialize IO register variables
 	ld A, IntEnableVBlank | IntEnableLCDC ; we'll enable timer later
@@ -90,6 +91,7 @@ Start::
 .mainloop
 	call Display
 	call WaitForUpdate
+	call UpdateSound
 	jr .mainloop
 
 
@@ -233,4 +235,47 @@ ENDM
 	WriteWord YawAvg,   15, 1 ; 1-4
 	WriteWord PitchAvg, 15, 6 ; 6-9
 
+	ret
+
+
+InitSound::
+	ld A, %10000000
+	ld [SoundControl], A
+	ld A, %01110111
+	ld [SoundVolume], A
+	ld A, %00010001
+	ld [SoundMux], A
+	xor A
+	ld [SoundCh1Control], A ; ensure it's off for now
+	ld [SoundCh1Sweep], A
+	ld A, %11110000 ; max vol, no envelope
+	ld [SoundCh1Volume], A
+	ret
+
+
+; If yaw is known, play a tone with freq dependent on yaw
+UpdateSound::
+	ld A, [YawAvg]
+	inc A ; set z if A was ff
+	jr nz, .sound_on
+
+	; disable sound
+	xor A
+	ld [SoundCh1Control], A
+	ret
+
+.sound_on
+	; set freq value = YawAvg + 800 = 109Hz to 2114Hz
+	ld A, [YawAvg]
+	ld H, A
+	ld A, [YawAvg + 1]
+	ld L, A
+	ld DE, 800
+	add HL, DE
+	ld A, L
+	ld [SoundCh1FreqLo], A
+	ld A, H
+	and %00000111
+	or %10000000 ; start playing forever
+	ld [SoundCh1Control], A
 	ret
