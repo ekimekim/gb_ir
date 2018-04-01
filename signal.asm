@@ -2,6 +2,7 @@ include "constants.asm"
 include "hram.asm"
 include "ioregs.asm"
 include "longcalc.asm"
+include "debug.asm"
 
 ; Code for detecting IR signals. Doesn't include any of the higher logic.
 
@@ -97,15 +98,19 @@ PollForPulse::
 	ld A, B
 	cp TOL_PULSE_DURATION_8c ; set c if B < acceptable duration
 	jr nc, .success
+	Debug "Pulse was too short"
 	IncStat StatPulseTooShort
 .fail
+	Debug "PollForPulse failed"
 	xor A
 .success
 	ret
 .fail_no_signal
+	Debug "Failed to find pulse"
 	IncStat StatPulseNoSignal
 	jr .fail
 .fail_too_long
+	Debug "Pulse was too long"
 	IncStat StatPulseTooLong
 	jr .fail
 
@@ -141,6 +146,7 @@ ENDC
 	jr nz, .wait_for_rise
 	; if we got here, time ran out without a signal
 .fail
+	Debug "Failed to find sweep"
 	ld DE, TOL_SWEEP_WAIT_8c
 	xor A
 	ret

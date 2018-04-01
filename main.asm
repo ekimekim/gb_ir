@@ -24,7 +24,6 @@ Start::
 	ld [SoundControl], A
 	ld [LCDControl], A
 
-
 	; Init as much of RAM as possible to "rst 0" to catch bad jumps
 	ld A, $c7
 

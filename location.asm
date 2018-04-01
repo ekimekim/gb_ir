@@ -2,6 +2,7 @@ include "constants.asm"
 include "hram.asm"
 include "ioregs.asm"
 include "longcalc.asm"
+include "debug.asm"
 
 ; Code for determining our location. This covers the high level logic.
 
@@ -65,6 +66,8 @@ LocationStop::
 OutOfSync::
 	di
 
+	Debug "Out of Sync"
+
 	; increment count
 	ld A, [StatOutOfSync]
 	inc A
@@ -113,6 +116,7 @@ OutOfSync::
 
 _OutOfSyncDummyHandler:
 	push AF
+	Debug "Out of sync dummy handler"
 	xor A
 	SetTimer TIME_SWEEP_TO_PULSE_64c, PulseHandler
 	pop AF
@@ -126,7 +130,9 @@ SweepHandler:
 	push BC
 	push DE
 	push HL
+	Debug "Sweep handler"
 	call PollForSweep ; DE = wait, A = duration or 0 on fail
+	Debug "Poll for sweep finished"
 	and A ; set z if failed
 	jr z, .failed
 	ld B, A
@@ -166,6 +172,7 @@ PulseHandler:
 	push AF
 	push BC
 	push HL
+	Debug "Pulse handler"
 	call PollForPulse ; sets A = duration, or 0 if no pulse
 	and A ; set z if no pulse
 
