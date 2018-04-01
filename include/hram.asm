@@ -4,8 +4,8 @@ RSSET $ff80
 ; Set it to 1 then watch it to know when to react to changes.
 Updated rb 1
 
-; Yaw and pitch values. Range from 0 to 1136 or ffff if unknown.
-; One for each lighthouse.
+; Yaw and pitch values. Range from 0 to $470 or $ffff if unknown.
+; One for each lighthouse, though which is which is liable to change.
 Yaw0 rw 1
 Pitch0 rw 1
 Yaw1 rw 1
