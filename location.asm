@@ -263,13 +263,14 @@ ENDM
 	ld A, 127
 .yaw_calc_done
 	ld [FirstIsYaw], A
-	; Note c is set if FirstIsYaw is positive
 
 	; Now we know which way around things are, we can publish (if available)
 	; the two pitches and yaws.
 	ld HL, LocAngles
 	ld C, LOW(Yaw0)
 
+	; note A still = FirstIsYaw
+	cp 128 ; set c if positive
 	jr c, .start_at_first
 	inc HL
 	inc HL ; point HL at slot 1 to start, not slot 0
