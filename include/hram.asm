@@ -11,6 +11,12 @@ Pitch0 rw 1
 Yaw1 rw 1
 Pitch1 rw 1
 
+; For convenience, the averages of (Yaw0,Yaw1), and (Pitch0,Pitch1),
+; with correct behaviour if only one of them is valid, etc.
+; $ffff if neither valid.
+YawAvg rw 1
+PitchAvg rw 1
+
 ; Positional coordinates from TODO to TODO (sign?) or TODO if unknown:
 ;	Forward: Perpendicular distance from the line between the two base stations,
 ;		level with the ground.

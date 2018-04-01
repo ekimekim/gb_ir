@@ -187,13 +187,18 @@ WriteWord: MACRO
 ENDM
 
 	; For debugging, we're going to display intermediate values as well as final products.
-	; First row: DataPtr, FirstIsYaw, StatOutOfSync
+	; First row: DataPtr, FirstIsYaw
 	; SPACE
 	; Rows 3-6: Duration, Angle, (Yaw/Pitch)(0/1)
 	; SPACE
 	; Row 8: Forward, Side, Height
 	; SPACE
 	; Row 10: Graphics Queue Head and Tail
+	; SPACE
+	; Row 12: Debug stats: out of sync, pulse no signal, pulse too long, pulse too short
+	; SPACE
+	; SPACE
+	; Row 15: average yaw, average pitch
 
 	WriteByte LocDataPtr, 1, 1 ; 1-2
 	WriteByte FirstIsYaw, 1, 4 ; 4-5
@@ -224,5 +229,8 @@ ENDM
 	WriteByte StatPulseNoSignal, 12, 4
 	WriteByte StatPulseTooLong, 12, 7
 	WriteByte StatPulseTooShort, 12, 10
+
+	WriteWord YawAvg,   15, 1 ; 1-4
+	WriteWord PitchAvg, 15, 6 ; 6-9
 
 	ret

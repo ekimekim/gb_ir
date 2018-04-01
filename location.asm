@@ -298,6 +298,9 @@ ENDM
 	; Now we can try to calculate our 3d location
 	call TryCalculatePosition
 
+	; And update angle averages
+	call TryCalculateAvgAngles
+
 	; Finally, indicate an update occurred
 	xor A
 	ld [Updated], A
@@ -311,3 +314,52 @@ ENDM
 
 TryCalculatePosition::
 	ret ; TODO
+
+
+TryCalculateAvgAngles::
+
+; If angle addr \1 is valid, add to HL and inc B.
+; Clobbers DE.
+_AddAngle: MACRO
+	ld A, [\1]
+	cp $ff
+	jr z, .invalid\@
+	ld D, A
+	ld A, [\1 + 1]
+	ld E, A
+	add HL, DE
+	inc B
+.invalid\@
+ENDM
+
+; Calculate and write average for \1 \2 \3 = Yaw0 Yaw1 YawAvg or Pitch0 Pitch1 PitchAvg
+_AvgAngle: MACRO
+	ld HL, 0
+	ld B, 0
+
+	_AddAngle \1
+	_AddAngle \2
+
+	dec B ; set z if B was 1, ie. HL is already the final value
+	jr z, .done\@
+	dec B ; set z if B was 2, ie. we need to halve HL
+	jr z, .half\@
+
+	; B was 0, ie. all invalid
+	ld HL, $ffff
+	jr .done\@
+
+.half\@
+	srl H
+	rr L
+
+.done\@
+	ld A, H
+	ld [\3], A
+	ld A, L
+	ld [\3 + 1], A
+ENDM
+
+	_AvgAngle Yaw0, Yaw1, YawAvg
+	_AvgAngle Pitch0, Pitch1, PitchAvg
+	ret
