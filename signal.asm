@@ -129,7 +129,8 @@ PollForSweep::
 	; DE counts down with number of loops waited.
 	; Note neither D or E can be zero or there are bugs! We cop out of fixing this by
 	; simply disallowing bad values.
-	ld DE, TOL_SWEEP_WAIT_8c
+	; We also adjust for a further bug by adding 1 to D and dealing with it later.
+	ld DE, TOL_SWEEP_WAIT_8c + 256
 IF TOL_SWEEP_WAIT_8c / 256 == 0 || TOL_SWEEP_WAIT_8c % 256 == 0
 	FAIL "TOL_SWEEP_WAIT_8c cannot have 0 in upper or lower byte."
 ENDC
@@ -158,6 +159,12 @@ ENDC
 	jr nz, .wait_for_fall
 .break
 
+	; Unless E == 0, D is 1 greater than it should be. Adjust for that.
+	ld A, E
+	and A ; set z if A == 0
+	jr z, .no_adjust
+	dec D
+.no_adjust
 	; Now DE = (TOL_SWEEP_WAIT - actual wait) and B = duration. We need to convert DE.
 	LongSub TOL_SWEEP_WAIT_8c, DE, DE ; DE = TOL_SWEEP_WAIT - DE = number of loops waited
 	ld A, B

@@ -154,8 +154,10 @@ SweepHandler:
 	LongAddToA DE, DE
 	ld A, E ; faster, and we want final result in A
 	; Now we need to convert from 8c to 64c by shifting DA right 3 times
+	REPT 3
 	srl D
 	rra
+	ENDR
 	; Note our result can be up to (1136+255)/8 = 173, which is less than TIME_SWEEP_TO_PULSE.
 	; So we don't need to worry about underflow here.
 	SetTimer TIME_SWEEP_TO_PULSE_64c, PulseHandler

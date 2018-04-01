@@ -204,9 +204,9 @@ ENDM
 	WriteByte LocDurations + 3, 6, 1 ; 1-2
 
 	WriteWord LocAngles + 0, 3, 4 ; 4-7
-	WriteWord LocAngles + 1, 4, 4 ; 4-7
-	WriteWord LocAngles + 2, 5, 4 ; 4-7
-	WriteWord LocAngles + 3, 6, 4 ; 4-7
+	WriteWord LocAngles + 2, 4, 4 ; 4-7
+	WriteWord LocAngles + 4, 5, 4 ; 4-7
+	WriteWord LocAngles + 6, 6, 4 ; 4-7
 
 	WriteWord Yaw0,   3, 9 ; 9-12
 	WriteWord Pitch0, 4, 9 ; 9-12
