@@ -243,13 +243,25 @@ ENDM
 	_CheckDuration 2, inc, dec
 	_CheckDuration 3, dec, inc
 
+	; If YAW_IS_SHORTER, do the opposite, ie. flip B
+IF YAW_IS_SHORTER > 0
+	xor A
+	sub B
+	ld B, A
+ENDC
+
 	; B is now the sum of the above results, let's apply it.
 	; This is a signed addition with saturation.
+	; This shouldn't be so hard, I'm probably doing it wrong.
 	ld A, [FirstIsYaw]
+	Debug "Before saturating add"
 	cp 128 ; set c if A is <128, ie. is positive
 	jr c, .positive
 	; negative
 	add B
+	; check for moving "past 0" by checking for values within 16 of 0. leave them be.
+	cp 16 ; set c if A < 16
+	jr c, .yaw_calc_done
 	; now check for underflow by checking value is still >= 128
 	cp 128 ; set c if A <128
 	jr nc, .yaw_calc_done
@@ -257,11 +269,15 @@ ENDM
 	jr .yaw_calc_done
 .positive
 	add B
+	; check for moving "past 0" by checking for values within 16 of 0. leave them be.
+	cp 256 - 16 ; set c if A < 256 - 16
+	jr nc, .yaw_calc_done
 	; now check for overflow by checking value is still < 128
 	cp 128 ; set c if A <128
 	jr c, .yaw_calc_done
 	ld A, 127
 .yaw_calc_done
+	Debug "Saturating add result"
 	ld [FirstIsYaw], A
 
 	; Now we know which way around things are, we can publish (if available)
