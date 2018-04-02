@@ -91,7 +91,6 @@ Start::
 .mainloop
 	call Display
 	call WaitForUpdate
-	call UpdateSound
 	jr .mainloop
 
 

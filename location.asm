@@ -321,6 +321,9 @@ ENDC
 	xor A
 	ld [Updated], A
 
+	; HACK: immediately update sound
+	call UpdateSound
+
 	pop DE
 	pop HL
 	pop BC
