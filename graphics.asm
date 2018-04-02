@@ -138,15 +138,17 @@ VBlankHandler::
 
 
 ; Enqueue a VRAM write of value B to DE.
-; May block indefinitely until there is space in the queue.
+; If no space available, returns A = 0, otherwise returns A != 0.
 ; Clobbers A, C, HL.
-GraphicsWrite::
+GraphicsTryWrite::
 	ld HL, GraphicsQueueHead
 	ld A, [HL+] ; A = head. Note head can't change in interrupt, only tail.
 	inc A
-.wait_loop
 	cp [HL] ; set z if head + 1 == tail, ie. we're full
-	jr z, .wait_loop ; loop until we aren't full, as tail can be changed by interrupt
+	jr nz, .ok ; fail if we're full
+	xor A
+	ret
+.ok
 	dec A
 	ld C, A
 	LongAddToA HL, HL ; HL += A, ie. HL = &tail + head = addrs + head - 1
@@ -162,4 +164,14 @@ GraphicsWrite::
 	ld A, C
 	inc A
 	ld [GraphicsQueueHead], A ; set updated head. This must be last for interrupt safety.
+	ld A, 1 ; indicate success
+	ret
+
+
+; As GraphicsTryWrite, but block until you succeed
+GraphicsWrite::
+.loop
+	call GraphicsTryWrite
+	and A ; set z if A == 0
+	jr z, .loop ; loop on failure
 	ret

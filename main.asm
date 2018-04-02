@@ -150,6 +150,7 @@ NibbleToDigit:
 	ret
 
 ; Writes byte A in hex to DE and advance DE.
+; Returns early if write buffer full.
 ; Clobbers B, C, HL.
 _WriteByte:
 	ld C, A
