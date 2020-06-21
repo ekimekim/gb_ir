@@ -9,4 +9,7 @@ LastSeen rb 1
 CountLo rb 1
 CountHi rb 1
 
+; Tracks where on screen we're writing to next
+GraphicsPos rb 1
+
 ENDC

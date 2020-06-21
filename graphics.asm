@@ -2,6 +2,7 @@
 include "macros.asm"
 include "vram.asm"
 include "hram.asm"
+include "ring.asm"
 
 
 SECTION "Graphics Data", ROM0
@@ -78,4 +79,12 @@ VBlank::
 	pop DE
 	pop BC
 	pop AF
+	ret
+
+
+; Write value D to screen at positions C and C+1 as two hex digits.
+; Sets C = C + 2. Clobbers otherwise except B.
+WriteHex:
+	inc C
+	inc C
 	ret
