@@ -1,4 +1,5 @@
 include "ioregs.asm"
+include "ring.asm"
 
 Section "Stack", WRAM0
 
@@ -6,6 +7,11 @@ StackBase:
 	ds 128
 Stack::
 
+; CountsRing stores (big-endian) 16-bit counts in ticks between IR transitions.
+Section "CountsRing", WRAM0
+
+CountsRing::
+	RingDeclare 255
 
 Section "Main", ROM0
 
