@@ -30,7 +30,11 @@ Restart7::
 section "VBlank Interrupt handler", ROM0 [$40]
 ; triggered upon VBLANK period starting
 IntVBlank::
-	reti
+	; We want timer to take priority, so we immediately re-enable interrupts.
+	; This is safe because timer is the only other interrupt, and we should never be able
+	; to get a second vblank before vblank int ends.
+	ei
+	jp VBlank
 
 section "LCDC Interrupt handler", ROM0 [$48]
 ; Also known as STAT handler
@@ -41,7 +45,7 @@ IntLCDC::
 section "Timer Interrupt handler", ROM0 [$50]
 ; A configurable amount of time has passed
 IntTimer::
-	reti
+	jp Timer
 
 section "Serial Interrupt handler", ROM0 [$58]
 ; Serial transfer is complete

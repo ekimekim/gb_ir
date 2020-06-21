@@ -23,6 +23,8 @@ Start::
 	ld SP, Stack
 
 	; Init things
+	call InitGraphics
+	call InitTimer
 
 	; Turn on screen
 	ld HL, LCDControl
