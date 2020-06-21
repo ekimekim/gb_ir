@@ -28,6 +28,11 @@ Start::
 	; Use core stack
 	ld SP, Stack
 
+	; Enter double speed mode
+	ld A, 1
+	ld [CGBSpeedSwitch], A
+	stop
+
 	; Init things
 	call InitGraphics
 	call InitTimer
