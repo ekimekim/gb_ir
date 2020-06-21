@@ -1,0 +1,18 @@
+Very simple and dirty program for analysing infrared signals.
+
+Expects a signal that is a short burst with few state changes.
+Records the pattern of state changes.
+
+Shown on screen is up to 64 values. Each one is a 16-bit hex value showing
+the number of "ticks" elapsed since the last state change. The initial state is
+no signal. Values >= ff00 indicate an out of range value, ie. "longer than ff00
+by an unknown amount". So a sequence like ff00 0100 0080 0180
+would indicate that after a long time with no signal, we got a pulse for 256 ticks,
+then a gap for 128 ticks, then a pulse for another 384 ticks.
+
+Right now one tick is set at ~64us (2^14 Hz).
+
+Note that after 64 values are shown, the oldest ones will be overwritten in order.
+
+The program may not behave correctly if many state transitions happen extremely rapidly
+(more than 127 in a short time, or more than 240/sec sustained).
