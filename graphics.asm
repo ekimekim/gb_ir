@@ -85,6 +85,28 @@ VBlank::
 ; Write value D to screen at positions C and C+1 as two hex digits.
 ; Sets C = C + 2. Clobbers otherwise except B.
 WriteHex:
-	inc C
+	ld A, D
+	and $f0
+	swap A
+	call WriteOneHex
+	ld A, D
+	and $0f
+	call WriteOneHex
+	ret
+
+; Write value A = 0-15 as a hex digit to C. inc C.
+WriteOneHex:
+	cp 10 ; set c if A <= 10
+	jr nc, .letter
+	; 0-9
+	add "0"
+	jr .got_char
+.letter
+	add "a" - 10
+.got_char
+	ld H, HIGH(TileGrid)
+	ld L, C
+	ld [HL], A
+
 	inc C
 	ret
