@@ -1,7 +1,7 @@
 
 # avoid implicit rules for clarity
 .SUFFIXES: .asm .o .gb
-.PHONY: bgb clean debug
+.PHONY: bgb clean debug copy
 
 ASMS := $(wildcard *.asm)
 OBJS := $(ASMS:.asm=.o)
@@ -44,3 +44,6 @@ bgb: build/release/rom.gb
 
 clean:
 	rm -f build/*/*.o build/*/rom.sym build/*/rom.gb rom.gb include/assets/.uptodate include/assets/*.asm
+
+copy: build/release/rom.gb
+	copy-rom ir-capture build/release/rom.gb
