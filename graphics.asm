@@ -3,6 +3,7 @@ include "macros.asm"
 include "vram.asm"
 include "hram.asm"
 include "ring.asm"
+include "ioregs.asm"
 
 
 SECTION "Graphics Data", ROM0
@@ -17,12 +18,21 @@ SECTION "Graphics Code", ROM0
 InitGraphics::
 	; load font data into tile map
 	ld HL, FontData
-	ld DE, BaseTileMap + $20 ; start from space, lined up with ascii
+	ld DE, BaseTileMap + ($20 * 16) ; start from space, lined up with ascii
 	ld BC, FontDataEnd - FontData
 	LongCopy
 	; init GraphicsPos
 	xor A
 	ld [GraphicsPos], A
+	; init palette 0 color 3 to black
+	ld A, $86 ; index 6, auto-advance
+	ld [TileGridPaletteIndex], A
+	xor A
+	ld [TileGridPaletteData], A
+	ld [TileGridPaletteData], A ; color = $0000 = (0, 0, 0)
+	; set LCDControl for base tilegrid, unsigned tilemap
+	ld A, %00010000
+	ld [LCDControl], A
 	ret
 
 

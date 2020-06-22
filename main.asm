@@ -37,6 +37,10 @@ Start::
 	call InitGraphics
 	call InitTimer
 
+	; Set up enabled interrupts
+	ld A, IntEnableVBlank | IntEnableTimer
+	ld [InterruptsEnabled], A
+
 	; Turn on screen
 	ld HL, LCDControl
 	set 7, [HL]
